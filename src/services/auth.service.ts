@@ -3,7 +3,6 @@ import bcrypt from "bcrypt";
 
 
 import  User  from "../models/user.model";
-import  Admin  from "../models/admin.model";
 import { SuperAdmin } from "../models/superadmin.model";
 import { compareHash } from "../utils/hash";
 import { signJWT } from "../utils/jwt";
