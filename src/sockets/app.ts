@@ -7,8 +7,11 @@ import admin from "../routes/admin.routes";
 import debugRoutes from "../routes/debug.routes";
 import storeRoutes from '../routes/store.routes';
 import materialRoutes from '../routes/material.routes';
+import categoryRoutes from "../routes/category.routes";
 import { Request, Response, NextFunction } from "express";
+import productRoutes from "../routes/product.routes";
 import cookieParser from 'cookie-parser';
+
 const app = express();
 
 const FRONTEND_ORIGINS = process.env.FRONTEND_ORIGINS
@@ -43,7 +46,10 @@ app.use("/auth", authRoutes);
 app.use("/db", debugRoutes);
 app.use('/stores', storeRoutes);
 app.use('/materials', materialRoutes);
+app.use("/products", productRoutes);
+app.use("/categories", categoryRoutes)
 app.use('/admin', admin)
+
 app.post('/logout', (req, res) => {
   res.cookie('token', '', {
   httpOnly: true,

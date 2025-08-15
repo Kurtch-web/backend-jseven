@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as materialService from '../services/material.services';
 import { assertUser } from '../utils/assertUser';
-import { BadRequestError, NotFoundError, ForbiddenError } from '../utils/errors';;
+import { BadRequestError, NotFoundError, ForbiddenError } from '../utils/errors';
 import { createMaterialSchema } from '../validators/material.validator';
 import { updateMaterialSchema } from '../validators/updatematerial.validator';
 import { v4 as uuidv4 } from 'uuid';
