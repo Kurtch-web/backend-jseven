@@ -11,6 +11,7 @@ export const adminRegisterSchema = z.object({
   affiliation: z.string(),
   governmentIdType: z.string(),
   governmentIdNumber: z.string()
+  
 });
 
 
