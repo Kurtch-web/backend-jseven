@@ -17,6 +17,8 @@ export interface IAdmin extends Document {
   isApproved: boolean;
   createdAt: Date;
   updatedAt: Date;
+
+  fullName: string; // <- virtual
 }
 
 const AdminSchema = new Schema<IAdmin>(
@@ -38,4 +40,13 @@ const AdminSchema = new Schema<IAdmin>(
   { timestamps: true }
 );
 
-export const Admin = mongoose.model<IAdmin>('Admin', AdminSchema);
+// ✅ Virtual field for full name
+AdminSchema.virtual("fullName").get(function (this: IAdmin) {
+  return `${this.firstName} ${this.lastName}`;
+});
+
+// Ensure virtuals are included in JSON and Object outputs
+AdminSchema.set("toJSON", { virtuals: true });
+AdminSchema.set("toObject", { virtuals: true });
+
+export const Admin = mongoose.model<IAdmin>("Admin", AdminSchema);
