@@ -61,13 +61,14 @@ export const registerAdmin = async (req: Request, res: Response) => {
     const parsed = adminRegisterSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
-        message: 'Invalid input',
-        errors: parsed.error.flatten()
+        message: "Invalid input",
+        errors: parsed.error.flatten(),
       });
     }
 
     const {
-      fullName,
+      firstName,
+      lastName,
       email,
       phoneNumber,
       password,
@@ -78,11 +79,13 @@ export const registerAdmin = async (req: Request, res: Response) => {
 
     // ✅ Check files
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    const idFile = files?.['idDocument']?.[0];
-    const selfieFile = files?.['selfieWithId']?.[0];
+    const idFile = files?.["idDocument"]?.[0];
+    const selfieFile = files?.["selfieWithId"]?.[0];
 
     if (!idFile) {
-      return res.status(400).json({ message: 'Government ID document is required' });
+      return res
+        .status(400)
+        .json({ message: "Government ID document is required" });
     }
 
     // ✅ Upload ID Document
@@ -95,14 +98,14 @@ export const registerAdmin = async (req: Request, res: Response) => {
 
     if (idUploadError) {
       return res.status(500).json({
-        message: 'Failed to upload ID document',
-        error: idUploadError.message
+        message: "Failed to upload ID document",
+        error: idUploadError.message,
       });
     }
     const idDocumentUrl = getPublicUrl(idFileName);
 
     // ✅ Optional selfie upload
-    let selfieWithIdUrl = '';
+    let selfieWithIdUrl = "";
     if (selfieFile) {
       const selfieFileName = `selfie-${uuidv4()}.jpg`;
       const { error: selfieUploadError } = await supabase.storage
@@ -113,8 +116,8 @@ export const registerAdmin = async (req: Request, res: Response) => {
 
       if (selfieUploadError) {
         return res.status(500).json({
-          message: 'Failed to upload selfie',
-          error: selfieUploadError.message
+          message: "Failed to upload selfie",
+          error: selfieUploadError.message,
         });
       }
       selfieWithIdUrl = getPublicUrl(selfieFileName);
@@ -125,11 +128,12 @@ export const registerAdmin = async (req: Request, res: Response) => {
 
     // ✅ Save admin to DB
     const admin = await Admin.create({
-      fullName,
+      firstName,
+      lastName,
       email,
       phoneNumber,
       password: hashedPassword,
-      role: 'Admin',
+      role: "Admin",
       affiliation,
       governmentIdType,
       governmentIdNumber,
@@ -142,23 +146,22 @@ export const registerAdmin = async (req: Request, res: Response) => {
     // ✅ Create notification for SuperAdmin
     await Notification.create({
       title: "New Admin Registration",
-      message: `${fullName} has registered as an admin and is awaiting approval.`,
+      message: `${firstName} ${lastName} has registered as an admin and is awaiting approval.`,
       type: "admin_registration",
       relatedId: admin._id.toString(),
       forRole: "SuperAdmin",
-      read: false
+      read: false,
     });
 
     return res.status(201).json({
-      message: 'Admin registration successful. Awaiting approval.',
+      message: "Admin registration successful. Awaiting approval.",
       adminId: admin._id,
     });
-
   } catch (err: any) {
-    console.error('[Admin Registration Error]', err);
+    console.error("[Admin Registration Error]", err);
     return res.status(500).json({
-      message: 'Internal server error',
-      error: err.message
+      message: "Internal server error",
+      error: err.message,
     });
   }
 };
