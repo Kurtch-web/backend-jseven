@@ -2,7 +2,7 @@
 import { Router, Request, Response  } from "express";
 import { adminLoginSchema} from "../validators/auth.validator";
 import { validate } from "../middlewares/validation.middleware";
-import {loginAdmin, registerAdmin} from "../controllers/admin.controllers"
+import {loginAdmin, registerAdmin, forgotPassword, resetPassword } from "../controllers/admin.controllers"
 import { upload } from "../utils/multer";
 // Import your custom rate limiter middleware
 import { apiLimiter } from "../middlewares/rateLimit.middleware";
@@ -19,6 +19,9 @@ const router = Router();
 router.post('/login-admin',  validate(adminLoginSchema), loginAdmin);
 router.post('/login-superadmin', loginSuperAdmin);
 router.post("/", requireAuth(["admin", "superadmin"]), createStore);
+
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 router.post(
   '/register-admin',
