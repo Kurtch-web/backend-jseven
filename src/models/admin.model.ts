@@ -18,6 +18,10 @@ export interface IAdmin extends Document {
   createdAt: Date;
   updatedAt: Date;
 
+  // 👇 Added for password reset
+  resetPasswordCode?: string;
+  resetPasswordExpires?: Date;
+
   fullName: string; // <- virtual
 }
 
@@ -27,7 +31,7 @@ const AdminSchema = new Schema<IAdmin>(
     lastName: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     phoneNumber: { type: String, required: true },
-    password: { type: String, required: true },
+    password: { type: String, required: true, select: false }, // hide by default
     role: { type: String, enum: ['Admin'], default: 'Admin' },
     affiliation: { type: String, required: true },
     governmentIdType: { type: String, required: true },
@@ -35,7 +39,11 @@ const AdminSchema = new Schema<IAdmin>(
     idDocumentUrl: { type: String, required: true },
     selfieWithIdUrl: { type: String },
     isIdentityVerified: { type: Boolean, default: false },
-    isApproved: { type: Boolean, default: false }
+    isApproved: { type: Boolean, default: false },
+
+    // 👇 New fields for forgot/reset password
+    resetPasswordCode: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false }
   },
   { timestamps: true }
 );

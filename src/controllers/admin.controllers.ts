@@ -4,6 +4,8 @@ import { Admin } from '../models/admin.model';
 import { adminLoginSchema, adminRegisterSchema } from '../validators/auth.validator';
 import { signJWT } from "../utils/jwt";
 import { v4 as uuidv4 } from 'uuid';
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 
 import supabase from '../utils/supabase';
 import { jwtMiddleware } from '../middlewares/jwt.middleware';
@@ -200,3 +202,77 @@ export const getAllAdmins = [
     }
   },
 ];
+
+export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(200).json({ message: "If that email exists, a reset code has been sent" });
+    }
+
+    // Generate secure 6-digit numeric code
+    const resetCode = crypto.randomInt(100000, 999999).toString();
+
+    admin.resetPasswordCode = resetCode;
+    admin.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    await admin.save();
+
+    // Setup transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_FROM,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Admin Support" <${process.env.EMAIL_FROM}>`,
+      to: admin.email,
+      subject: "Password Reset Code",
+      text: `Your password reset code is: ${resetCode}. It expires in 15 minutes.`,
+    });
+
+    res.json({ message: "If that email exists, a reset code has been sent" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    // 👇 include password + reset fields explicitly
+    const admin = await Admin.findOne({ email }).select("+password +resetPasswordCode +resetPasswordExpires");
+
+    if (!admin || !admin.resetPasswordCode || !admin.resetPasswordExpires) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
+
+    if (admin.resetPasswordCode !== code) {
+      return res.status(400).json({ message: "Invalid or expired reset code" });
+    }
+
+    if (admin.resetPasswordExpires < new Date()) {
+      return res.status(400).json({ message: "Reset code has expired" });
+    }
+
+    // ✅ Hash and update new password
+    const salt = await bcrypt.genSalt(10);
+    admin.password = await bcrypt.hash(newPassword, salt);
+
+    // ✅ Clear reset code fields
+    admin.resetPasswordCode = undefined;
+    admin.resetPasswordExpires = undefined;
+
+    await admin.save();
+
+    res.json({ message: "Password reset successful. You may now log in." });
+  } catch (error) {
+    next(error);
+  }
+};
