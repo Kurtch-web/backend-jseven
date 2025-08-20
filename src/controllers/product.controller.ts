@@ -85,31 +85,16 @@ export async function createProductController(req: Request, res: Response, next:
       tags = typeof req.body.tags === "string" ? JSON.parse(req.body.tags) : req.body.tags;
     }
 
-// --- Dimensions ---
-let dimensions: { size?: number; unit: "cm" | "in" | "mm" } = { size: undefined, unit: "cm" };
+// --- Dimensions as string ---
+let dimensions: string | undefined;
 
 if (req.body.dimensions) {
   try {
-    const d = typeof req.body.dimensions === "string"
-      ? JSON.parse(req.body.dimensions) // try JSON first
-      : req.body.dimensions;
-
-    // Case 1: string "100 cm"
-    if (typeof d === "string") {
-      const match = d.match(/^(\d+(?:\.\d+)?)\s*(cm|in|mm)?$/i);
-      if (match) {
-        dimensions = {
-          size: parseFloat(match[1]),
-          unit: (match[2]?.toLowerCase() as "cm" | "in" | "mm") || "cm",
-        };
-      }
-    } 
-    // Case 2: object { size, unit }
-    else {
-      dimensions = {
-        size: d.size ? parseNumber(d.size) : undefined,
-        unit: d.unit && ["cm", "in", "mm"].includes(d.unit) ? d.unit : "cm",
-      };
+    if (typeof req.body.dimensions === "string") {
+      dimensions = req.body.dimensions.trim(); // e.g., "60x40x25 cm"
+    } else if (typeof req.body.dimensions === "object") {
+      const { size, unit } = req.body.dimensions;
+      dimensions = size ? `${size} ${unit || "cm"}` : undefined;
     }
   } catch {
     // fallback ignore
