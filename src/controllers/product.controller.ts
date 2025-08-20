@@ -206,13 +206,21 @@ export async function getProductByIdController(req: Request, res: Response, next
 export async function updateProductController(req: Request, res: Response, next: NextFunction) {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product || !product.isActive) {
+    if (!product) {
       throw new NotFoundError("Product not found");
     }
 
     // Optional: Validate name length
     if (req.body.name && req.body.name.trim().length < 2) {
       throw new BadRequestError("Product name must be at least 2 characters long");
+    }
+
+    // Normalize specifications (support "name" or "key")
+    if (req.body.specifications) {
+      req.body.specifications = req.body.specifications.map((s: any) => ({
+        key: s.key ?? s.name,
+        value: s.value,
+      }));
     }
 
     // Upload new image if provided
@@ -229,18 +237,25 @@ export async function updateProductController(req: Request, res: Response, next:
       product.image = `${process.env.SUPABASE_URL}/storage/v1/object/public/${process.env.SUPABASE_BUCKET}/${imageFileName}`;
     }
 
+    // Apply updates
     Object.assign(product, sanitizeProductBody(req.body));
-    if (req.body.name) product.slug = slugify(req.body.name, { lower: true, strict: true });
+
+    // Re-generate slug if name is updated
+    if (req.body.name) {
+      product.slug = slugify(req.body.name, { lower: true, strict: true });
+    }
+
     await product.save();
 
     res.json({
       message: "Product updated successfully",
-      product
+      product,
     });
   } catch (err) {
     next(err);
   }
 }
+
 
 // DELETE PRODUCT (hard delete)
 export async function deleteProductController(req: Request, res: Response, next: NextFunction) {
