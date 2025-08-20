@@ -15,7 +15,7 @@ function sanitizeProductBody(body: any) {
     "inStock", "specifications", "reviews", "rating", "reviewCount",
     "isActive", "isFeatured", "weight", "dimensions", "tags",
     "seoTitle", "seoDescription", "viewCount", "salesCount",
-    "packageQuantity", // ✅ added
+    "packageQuantity", "quality",
   ];
   return Object.keys(body)
     .filter((key) => allowedFields.includes(key))
@@ -136,7 +136,8 @@ if (req.body.dimensions) {
       originalPrice: parseNumber(req.body.originalPrice),
       discount: parseNumber(req.body.discount),
       stock: parseNumber(stock),
-      packageQuantity: req.body.packageQuantity?.trim(), // ✅ new fiel
+      packageQuantity: req.body.packageQuantity?.trim(), 
+      quality: req.body.quality || "standard",
       lowStockThreshold: parseNumber(req.body.lowStockThreshold),
       inStock: req.body.inStock !== undefined ? JSON.parse(req.body.inStock) : true,
       image: mainImageUrl,
