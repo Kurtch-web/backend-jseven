@@ -11,6 +11,7 @@ export interface ProductInput {
   brand: string;
   category: Types.ObjectId;
   price: number;
+  packageQuantity: String;
   originalPrice?: number;
   discount?: number;
   images: { url: string; alt: string; isMain?: boolean }[];
