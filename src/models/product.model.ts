@@ -27,9 +27,7 @@ export interface ProductInput {
   isFeatured?: boolean;
   weight?: number;
   dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
+    size?:string;
     unit?: "cm" | "in" | "mm";
   };
   tags?: string[];
@@ -77,10 +75,8 @@ const ProductSchema = new Schema<ProductDocument>(
     isFeatured: { type: Boolean, default: false, index: true },
     weight: { type: Number, min: 0 },
     dimensions: {
-      length: { type: Number, min: 0 },
-      width: { type: Number, min: 0 },
-      height: { type: Number, min: 0 },
       unit: { type: String, enum: ["cm", "in", "mm"], default: "cm" },
+      size: { type: Number, min: 0 },
     },
     tags: [{ type: String, trim: true, lowercase: true }],
     seoTitle: { type: String, maxlength: 60, trim: true },
