@@ -12,10 +12,11 @@ export interface ProductInput {
   category: Types.ObjectId;
   price: number;
   packageQuantity: String;
+  quality: "premium" | "standard" | "economy",
   originalPrice?: number;
   discount?: number;
   images: { url: string; alt: string; isMain?: boolean }[];
-  image: string;
+  image: string; 
   stock: number;
   createdBy: Types.ObjectId; // new field
   lowStockThreshold?: number;
