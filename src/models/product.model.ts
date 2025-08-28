@@ -57,6 +57,11 @@ const ProductSchema = new Schema<ProductDocument>(
     price: { type: Number, required: true, min: 0 },
     originalPrice: { type: Number, min: 0 },
     discount: { type: Number, default: 0, min: 0, max: 100 },
+
+    // ✅ Add these
+    packageQuantity: { type: String, trim: true, default: "" },
+    quality: { type: String, enum: ["premium", "standard", "economy"], default: "standard" },
+
     images: [
       {
         url: { type: String, required: true },
@@ -88,5 +93,6 @@ const ProductSchema = new Schema<ProductDocument>(
   },
   { timestamps: true }
 );
+
 
 export const Product = mongoose.model<ProductDocument>("Product", ProductSchema);

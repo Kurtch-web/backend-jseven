@@ -86,22 +86,25 @@ export async function createProductController(req: Request, res: Response, next:
       tags = typeof req.body.tags === "string" ? JSON.parse(req.body.tags) : req.body.tags;
     }
 
-// --- Dimensions as string ---
-let dimensions: string | undefined;
+// --- Dimensions as object ---
+let dimensions: { size?: number; unit?: "cm" | "in" | "mm" } | undefined;
 
 if (req.body.dimensions) {
   try {
     if (typeof req.body.dimensions === "string") {
-      dimensions = req.body.dimensions.trim(); // e.g., "60x40x25 cm"
+      // Optional: parse "60 cm" or "60x40x25 cm" into number? Or just ignore string
+      dimensions = { size: parseNumber(req.body.dimensions), unit: "cm" };
     } else if (typeof req.body.dimensions === "object") {
       const { size, unit } = req.body.dimensions;
-      dimensions = size ? `${size} ${unit || "cm"}` : undefined;
+      dimensions = {
+        size: parseNumber(size),
+        unit: unit && ["cm", "in", "mm"].includes(unit) ? unit as "cm" | "in" | "mm" : "cm",
+      };
     }
   } catch {
-    // fallback ignore
+    dimensions = undefined;
   }
 }
-
 
     // --- Slug (unique) ---
     let slug = slugify(name, { lower: true, strict: true });
