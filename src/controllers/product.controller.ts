@@ -90,27 +90,27 @@ export async function createProductController(req: Request, res: Response, next:
 let dimensions: string | undefined;
 if (req.body.dimensions) {
   if (typeof req.body.dimensions === "string") {
-    const dimStr = req.body.dimensions.trim(); // e.g., "60x40x25"
-    // Regex: 3 numbers separated by x, e.g., 60x40x25
+    const dimStr = req.body.dimensions.trim(); // e.g., "60x40x25" or "60x40x25 cm"
+    const [sizePart, unitPart] = dimStr.split(" "); // separate size and optional unit
     const dimRegex = /^\d+(\.\d+)?x\d+(\.\d+)?x\d+(\.\d+)?$/;
-    if (!dimRegex.test(dimStr)) {
+    if (!dimRegex.test(sizePart)) {
       throw new BadRequestError("Dimensions must be in the format LengthxWidthxHeight, e.g., 60x40x25");
     }
-    dimensions = dimStr + " cm"; // default unit if not provided
+    const unit = unitPart && ["cm", "in", "mm"].includes(unitPart) ? unitPart : "cm";
+    dimensions = `${sizePart} ${unit}`;
   } else if (typeof req.body.dimensions === "object") {
     const { size, unit } = req.body.dimensions;
     if (!size || !unit) throw new BadRequestError("Dimensions must include size and unit");
     const dimRegex = /^\d+(\.\d+)?x\d+(\.\d+)?x\d+(\.\d+)?$/;
-    if (!dimRegex.test(size)) {
+    if (!dimRegex.test(size.trim())) {
       throw new BadRequestError("Dimensions size must be in the format LengthxWidthxHeight, e.g., 60x40x25");
     }
     if (!["cm", "in", "mm"].includes(unit)) {
       throw new BadRequestError("Dimensions unit must be one of: cm, in, mm");
     }
-    dimensions = `${size} ${unit}`;
+    dimensions = `${size.trim()} ${unit}`;
   }
 }
-
     // --- Slug (unique) ---
     let slug = slugify(name, { lower: true, strict: true });
     let slugExists = await Product.findOne({ slug });
