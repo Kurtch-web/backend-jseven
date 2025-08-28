@@ -86,16 +86,31 @@ export async function createProductController(req: Request, res: Response, next:
       tags = typeof req.body.tags === "string" ? JSON.parse(req.body.tags) : req.body.tags;
     }
 
-// --- Dimensions as object ---
+// --- Dimensions validation ---
 let dimensions: string | undefined;
 if (req.body.dimensions) {
   if (typeof req.body.dimensions === "string") {
-    dimensions = req.body.dimensions.trim(); // e.g., "60x40x25 cm"
+    const dimStr = req.body.dimensions.trim(); // e.g., "60x40x25"
+    // Regex: 3 numbers separated by x, e.g., 60x40x25
+    const dimRegex = /^\d+(\.\d+)?x\d+(\.\d+)?x\d+(\.\d+)?$/;
+    if (!dimRegex.test(dimStr)) {
+      throw new BadRequestError("Dimensions must be in the format LengthxWidthxHeight, e.g., 60x40x25");
+    }
+    dimensions = dimStr + " cm"; // default unit if not provided
   } else if (typeof req.body.dimensions === "object") {
     const { size, unit } = req.body.dimensions;
-    dimensions = size ? `${size} ${unit || "cm"}` : undefined;
+    if (!size || !unit) throw new BadRequestError("Dimensions must include size and unit");
+    const dimRegex = /^\d+(\.\d+)?x\d+(\.\d+)?x\d+(\.\d+)?$/;
+    if (!dimRegex.test(size)) {
+      throw new BadRequestError("Dimensions size must be in the format LengthxWidthxHeight, e.g., 60x40x25");
+    }
+    if (!["cm", "in", "mm"].includes(unit)) {
+      throw new BadRequestError("Dimensions unit must be one of: cm, in, mm");
+    }
+    dimensions = `${size} ${unit}`;
   }
 }
+
     // --- Slug (unique) ---
     let slug = slugify(name, { lower: true, strict: true });
     let slugExists = await Product.findOne({ slug });
