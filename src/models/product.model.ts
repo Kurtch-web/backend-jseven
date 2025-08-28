@@ -81,10 +81,10 @@ const ProductSchema = new Schema<ProductDocument>(
     isActive: { type: Boolean, default: true, index: true },
     isFeatured: { type: Boolean, default: false, index: true },
     weight: { type: Number, min: 0 },
-    dimensions: {
-      unit: { type: String, enum: ["cm", "in", "mm"], default: "cm" },
-      size: { type: Number, min: 0 },
-    },
+dimensions: {
+  unit: { type: String, enum: ["cm", "in", "mm"], default: "cm" },
+  size: { type: String, trim: true }, // ✅ change from Number to String
+},
     tags: [{ type: String, trim: true, lowercase: true }],
     seoTitle: { type: String, maxlength: 60, trim: true },
     seoDescription: { type: String, maxlength: 160, trim: true },

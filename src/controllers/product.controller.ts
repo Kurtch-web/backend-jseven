@@ -87,25 +87,15 @@ export async function createProductController(req: Request, res: Response, next:
     }
 
 // --- Dimensions as object ---
-let dimensions: { size?: number; unit?: "cm" | "in" | "mm" } | undefined;
-
+let dimensions: string | undefined;
 if (req.body.dimensions) {
-  try {
-    if (typeof req.body.dimensions === "string") {
-      // Optional: parse "60 cm" or "60x40x25 cm" into number? Or just ignore string
-      dimensions = { size: parseNumber(req.body.dimensions), unit: "cm" };
-    } else if (typeof req.body.dimensions === "object") {
-      const { size, unit } = req.body.dimensions;
-      dimensions = {
-        size: parseNumber(size),
-        unit: unit && ["cm", "in", "mm"].includes(unit) ? unit as "cm" | "in" | "mm" : "cm",
-      };
-    }
-  } catch {
-    dimensions = undefined;
+  if (typeof req.body.dimensions === "string") {
+    dimensions = req.body.dimensions.trim(); // e.g., "60x40x25 cm"
+  } else if (typeof req.body.dimensions === "object") {
+    const { size, unit } = req.body.dimensions;
+    dimensions = size ? `${size} ${unit || "cm"}` : undefined;
   }
 }
-
     // --- Slug (unique) ---
     let slug = slugify(name, { lower: true, strict: true });
     let slugExists = await Product.findOne({ slug });
