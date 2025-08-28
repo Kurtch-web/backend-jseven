@@ -87,28 +87,29 @@ export async function createProductController(req: Request, res: Response, next:
     }
 
 // --- Dimensions validation ---
-let dimensions: string | undefined;
+let dimensionsObj: { size: string; unit: "cm" | "in" | "mm" } | undefined;
+
 if (req.body.dimensions) {
+  const dimRegex = /^\d+(\.\d+)?x\d+(\.\d+)?x\d+(\.\d+)?$/;
+
   if (typeof req.body.dimensions === "string") {
     const dimStr = req.body.dimensions.trim(); // e.g., "60x40x25" or "60x40x25 cm"
-    const [sizePart, unitPart] = dimStr.split(" "); // separate size and optional unit
-    const dimRegex = /^\d+(\.\d+)?x\d+(\.\d+)?x\d+(\.\d+)?$/;
+    const [sizePart, unitPart] = dimStr.split(" ");
     if (!dimRegex.test(sizePart)) {
       throw new BadRequestError("Dimensions must be in the format LengthxWidthxHeight, e.g., 60x40x25");
     }
-    const unit = unitPart && ["cm", "in", "mm"].includes(unitPart) ? unitPart : "cm";
-    dimensions = `${sizePart} ${unit}`;
+    const unit = unitPart && ["cm", "in", "mm"].includes(unitPart) ? unitPart as "cm"|"in"|"mm" : "cm";
+    dimensionsObj = { size: sizePart, unit };
   } else if (typeof req.body.dimensions === "object") {
     const { size, unit } = req.body.dimensions;
     if (!size || !unit) throw new BadRequestError("Dimensions must include size and unit");
-    const dimRegex = /^\d+(\.\d+)?x\d+(\.\d+)?x\d+(\.\d+)?$/;
     if (!dimRegex.test(size.trim())) {
       throw new BadRequestError("Dimensions size must be in the format LengthxWidthxHeight, e.g., 60x40x25");
     }
     if (!["cm", "in", "mm"].includes(unit)) {
       throw new BadRequestError("Dimensions unit must be one of: cm, in, mm");
     }
-    dimensions = `${size.trim()} ${unit}`;
+    dimensionsObj = { size: size.trim(), unit };
   }
 }
     // --- Slug (unique) ---
@@ -157,7 +158,7 @@ if (req.body.dimensions) {
       isActive: req.body.isActive !== undefined ? JSON.parse(req.body.isActive) : true,
       isFeatured: req.body.isFeatured !== undefined ? JSON.parse(req.body.isFeatured) : false,
       weight: parseNumber(req.body.weight),
-      dimensions,
+      dimensions: dimensionsObj,
       seoTitle: req.body.seoTitle?.trim(),
       seoDescription: req.body.seoDescription?.trim(),
       viewCount: parseNumber(req.body.viewCount) || 0,
