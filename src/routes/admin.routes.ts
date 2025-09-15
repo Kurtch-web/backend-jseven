@@ -1,10 +1,124 @@
 // routes/admin.routes.ts
-import express from "express";
+import express from 'express';
+import multer from 'multer';
+import { createClient } from "@supabase/supabase-js";
 import { requireRole } from "../middlewares/auth.middleware";
 import { jwtMiddleware } from "../middlewares/jwt.middleware"; // your new middleware
 import { Admin } from "../models/admin.model";
 
 const router = express.Router();
+
+// Multer setup (store file in memory buffer)
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+// Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // use service role for upload
+);
+
+// 📌 Public upload route (no token required)
+router.post(
+  "/upload-excel",
+  upload.single("file"), // multer handles `file`
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const file = req.file;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `excel-${timestamp}-${file.originalname}`;
+
+      // Upload to Supabase bucket
+      const { error } = await supabase.storage
+        .from("excelquotation")
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: true,
+        });
+
+      if (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Failed to upload to Supabase" });
+      }
+
+      // Get public URL
+      const { data } = supabase.storage.from("excelquotation").getPublicUrl(fileName);
+
+      // Metadata
+      const metadata = {
+        name: file.originalname,
+        uploadedAt: new Date(),
+        url: data.publicUrl,
+      };
+
+      res.status(200).json({
+        message: "Excel uploaded successfully",
+        metadata,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error uploading file" });
+    }
+  }
+);
+
+
+
+router.get("/list-excels", async (_req, res) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from("excelquotation")
+      .list("", {
+        limit: 100,
+        sortBy: { column: "created_at", order: "desc" },
+      });
+
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Failed to list files" });
+    }
+
+    // Attach public URLs
+    const files = data.map((file) => ({
+      name: file.name,
+      createdAt: file.created_at,
+      url: supabase.storage.from("excelquotation").getPublicUrl(file.name).data.publicUrl,
+    }));
+
+    res.status(200).json({ files });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error listing files" });
+  }
+});
+
+router.delete("/delete-excel/:fileName", async (req, res) => {
+  try {
+    const { fileName } = req.params;
+
+    if (!fileName) {
+      return res.status(400).json({ message: "No file name provided" });
+    }
+
+    const { error } = await supabase.storage
+      .from("excelquotation")
+      .remove([fileName]);
+
+    if (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Failed to delete file" });
+    }
+
+    res.status(200).json({ message: `File ${fileName} deleted successfully` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error deleting file" });
+  }
+});
 
 router.get(
   "/all",
