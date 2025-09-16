@@ -20,7 +20,7 @@ const supabase = createClient(
 
 // 📌 Public upload route (no token required)
 router.post(
-  "/upload-excel",
+  "/upload-pdf",
   upload.single("file"), // multer handles `file`
   async (req, res) => {
     try {
@@ -28,15 +28,30 @@ router.post(
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      const { businessName } = req.body;
+      if (!businessName) {
+        return res.status(400).json({ message: "Business name is required" });
+      }
+
       const file = req.file;
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const fileName = `excel-${timestamp}-${file.originalname}`;
+
+      // Format date and time (YYYY-MM-DD_HH-MM-SS)
+      const now = new Date();
+      const timestamp = now
+        .toISOString()
+        .replace("T", "_")
+        .replace(/[:.]/g, "-")
+        .split("Z")[0]; // remove trailing Z
+
+      // Construct filename
+      const fileExt = file.originalname.split(".").pop();
+      const fileName = `${businessName}-${timestamp}.${fileExt}`;
 
       // Upload to Supabase bucket
       const { error } = await supabase.storage
-        .from("excelquotation")
+        .from("pdfquotation")
         .upload(fileName, file.buffer, {
-          contentType: file.mimetype,
+          contentType: file.mimetype || "application/pdf",
           upsert: true,
         });
 
@@ -46,17 +61,17 @@ router.post(
       }
 
       // Get public URL
-      const { data } = supabase.storage.from("excelquotation").getPublicUrl(fileName);
+      const { data } = supabase.storage.from("pdfquotation").getPublicUrl(fileName);
 
       // Metadata
       const metadata = {
-        name: file.originalname,
-        uploadedAt: new Date(),
+        businessName,
+        uploadedAt: now,
         url: data.publicUrl,
       };
 
       res.status(200).json({
-        message: "Excel uploaded successfully",
+        message: "PDF uploaded successfully",
         metadata,
       });
     } catch (err) {
@@ -68,10 +83,11 @@ router.post(
 
 
 
-router.get("/list-excels", async (_req, res) => {
+// 📌 List PDFs
+router.get("/list-pdfs", async (_req, res) => {
   try {
     const { data, error } = await supabase.storage
-      .from("excelquotation")
+      .from("pdfquotation") // ✅ use pdf bucket
       .list("", {
         limit: 100,
         sortBy: { column: "created_at", order: "desc" },
@@ -86,7 +102,7 @@ router.get("/list-excels", async (_req, res) => {
     const files = data.map((file) => ({
       name: file.name,
       createdAt: file.created_at,
-      url: supabase.storage.from("excelquotation").getPublicUrl(file.name).data.publicUrl,
+      url: supabase.storage.from("pdfquotation").getPublicUrl(file.name).data.publicUrl,
     }));
 
     res.status(200).json({ files });
@@ -96,7 +112,8 @@ router.get("/list-excels", async (_req, res) => {
   }
 });
 
-router.delete("/delete-excel/:fileName", async (req, res) => {
+// 📌 Delete PDF
+router.delete("/delete-pdf/:fileName", async (req, res) => {
   try {
     const { fileName } = req.params;
 
@@ -105,7 +122,7 @@ router.delete("/delete-excel/:fileName", async (req, res) => {
     }
 
     const { error } = await supabase.storage
-      .from("excelquotation")
+      .from("pdfquotation") // ✅ use pdf bucket
       .remove([fileName]);
 
     if (error) {
@@ -119,6 +136,7 @@ router.delete("/delete-excel/:fileName", async (req, res) => {
     res.status(500).json({ message: "Server error deleting file" });
   }
 });
+
 
 router.get(
   "/all",
