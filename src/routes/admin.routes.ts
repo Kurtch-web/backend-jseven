@@ -28,9 +28,13 @@ router.post(
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      const { businessName } = req.body;
+      const { businessName, quoteNumber, jsonData } = req.body;
+
       if (!businessName) {
         return res.status(400).json({ message: "Business name is required" });
+      }
+      if (!quoteNumber) {
+        return res.status(400).json({ message: "Quote number is required" });
       }
 
       const file = req.file;
@@ -43,35 +47,66 @@ router.post(
         .replace(/[:.]/g, "-")
         .split("Z")[0]; // remove trailing Z
 
-      // Construct filename
+      // Construct base filename with business + quote + timestamp
       const fileExt = file.originalname.split(".").pop();
-      const fileName = `${businessName}-${timestamp}.${fileExt}`;
+      const baseName = `${businessName}-Quote${quoteNumber}-${timestamp}`;
+      const fileName = `${baseName}.${fileExt}`;
+      const jsonName = `${baseName}.json`;
 
-      // Upload to Supabase bucket
-      const { error } = await supabase.storage
+      // ✅ Upload PDF to Supabase bucket
+      const { error: pdfError } = await supabase.storage
         .from("pdfquotation")
         .upload(fileName, file.buffer, {
           contentType: file.mimetype || "application/pdf",
           upsert: true,
         });
 
-      if (error) {
-        console.error(error);
-        return res.status(500).json({ message: "Failed to upload to Supabase" });
+      if (pdfError) {
+        console.error(pdfError);
+        return res.status(500).json({ message: "Failed to upload PDF to Supabase" });
       }
 
-      // Get public URL
-      const { data } = supabase.storage.from("pdfquotation").getPublicUrl(fileName);
+      // ✅ Upload JSON (merge in businessName + quoteNumber)
+      if (jsonData) {
+        let parsedJson;
+        try {
+          parsedJson = JSON.parse(jsonData);
+        } catch (e) {
+          return res.status(400).json({ message: "Invalid JSON data" });
+        }
+
+        // Inject businessName + quoteNumber into JSON
+        parsedJson.businessName = businessName;
+        parsedJson.quoteNumber = quoteNumber;
+
+        const { error: jsonError } = await supabase.storage
+          .from("pdfquotation")
+          .upload(jsonName, Buffer.from(JSON.stringify(parsedJson, null, 2)), {
+            contentType: "application/json",
+            upsert: true,
+          });
+
+        if (jsonError) {
+          console.error(jsonError);
+          return res.status(500).json({ message: "Failed to upload JSON to Supabase" });
+        }
+      }
+
+      // ✅ Get public URLs
+      const { data: pdfUrl } = supabase.storage.from("pdfquotation").getPublicUrl(fileName);
+      const { data: jsonUrl } = supabase.storage.from("pdfquotation").getPublicUrl(jsonName);
 
       // Metadata
       const metadata = {
         businessName,
+        quoteNumber,
         uploadedAt: now,
-        url: data.publicUrl,
+        pdfUrl: pdfUrl.publicUrl,
+        jsonUrl: jsonData ? jsonUrl.publicUrl : null,
       };
 
       res.status(200).json({
-        message: "PDF uploaded successfully",
+        message: "PDF (and JSON if provided) uploaded successfully",
         metadata,
       });
     } catch (err) {
@@ -112,7 +147,7 @@ router.get("/list-pdfs", async (_req, res) => {
   }
 });
 
-// 📌 Delete PDF
+// 📌 Delete PDF + JSON
 router.delete("/delete-pdf/:fileName", async (req, res) => {
   try {
     const { fileName } = req.params;
@@ -121,21 +156,26 @@ router.delete("/delete-pdf/:fileName", async (req, res) => {
       return res.status(400).json({ message: "No file name provided" });
     }
 
+    // Derive the JSON file name (replace extension with .json)
+    const jsonFileName = fileName.replace(/\.[^/.]+$/, ".json");
+
+    // Remove both PDF and JSON
     const { error } = await supabase.storage
-      .from("pdfquotation") // ✅ use pdf bucket
-      .remove([fileName]);
+      .from("pdfquotation")
+      .remove([fileName, jsonFileName]);
 
     if (error) {
       console.error(error);
-      return res.status(500).json({ message: "Failed to delete file" });
+      return res.status(500).json({ message: "Failed to delete files" });
     }
 
-    res.status(200).json({ message: `File ${fileName} deleted successfully` });
+    res.status(200).json({ message: `PDF (${fileName}) and JSON (${jsonFileName}) deleted successfully` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error deleting file" });
+    res.status(500).json({ message: "Server error deleting files" });
   }
 });
+
 
 
 router.get(
